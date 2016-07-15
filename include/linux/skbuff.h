@@ -604,6 +604,7 @@ struct sk_buff {
 
 	__be16			vlan_proto;
 	__u16			vlan_tci;
+	__u8            fast_forwarded:1;
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
