@@ -37,4 +37,14 @@ config QCOM_EMAC
 	  low power, Receive-Side Scaling (RSS), and IEEE 1588-2008
 	  Precision Clock Synchronization Protocol.
 
+config SHORTCUT_FE
+	tristate "Qualcomm/Atheros shortcut forward engine"
+	select NF_CONNTRACK
+	select NF_CONNTRACK_MARK
+	select NF_CONNTRACK_CHAIN_EVENTS
+	---help---
+	  This driver provides support for accelerated "shortcut" packet forwarding.
+
+	  The module will be called sfe.
+
 endif # NET_VENDOR_QUALCOMM
