@@ -1,0 +1,30 @@
+#
+# Qualcomm network device configuration
+#
+
+config NET_VENDOR_QUALCOMM
+    bool "Qualcomm devices"
+    default y
+    ---help---
+      If you have a network (Ethernet) card belonging to this class, say Y
+      and read the Ethernet-HOWTO, available from
+      <http://www.tldp.org/docs.html#howto>.
+
+      Note that the answer to this question doesn't directly affect the
+      kernel: saying N will just cause the configurator to skip all
+      the questions about Qualcomm cards. If you say Y, you will be asked
+      for your specific card in the following questions.
+
+if NET_VENDOR_QUALCOMM
+
+config SHORTCUT_FE
+	tristate "Qualcomm/Atheros shortcut forward engine"
+	select NF_CONNTRACK
+	select NF_CONNTRACK_MARK
+	select NF_CONNTRACK_CHAIN_EVENTS
+	---help---
+	  This driver provides support for accelerated "shortcut" packet forwarding.
+
+	  The module will be called sfe.
+
+endif # NET_VENDOR_QUALCOMM
