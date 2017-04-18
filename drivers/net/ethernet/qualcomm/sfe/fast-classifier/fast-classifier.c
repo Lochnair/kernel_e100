@@ -1116,6 +1116,7 @@ fast_classifier_ipv6_post_routing_hook(hooknum, ops, skb, in_unused, out, okfn)
 	return fast_classifier_post_routing(skb, false);
 }
 
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 /*
  * fast_classifier_update_mark()
  *	updates the mark for a fast-classifier connection
@@ -1136,7 +1137,6 @@ static void fast_classifier_update_mark(struct sfe_connection_mark *mark, bool i
 	spin_unlock_bh(&sfe_connections_lock);
 }
 
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
 /*
  * fast_classifier_conntrack_event()
  *	Callback event invoked when a conntrack connection's state changes.
