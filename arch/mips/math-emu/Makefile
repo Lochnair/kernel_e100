@@ -14,3 +14,6 @@ lib-y	+= ieee754d.o \
 	   sp_tlong.o sp_flong.o sp_sqrt.o
 
 obj-$(CONFIG_DEBUG_FS) += me-debugfs.o
+
+ccflags-y += -Wno-bool-operation
+
