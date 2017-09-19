@@ -12,6 +12,8 @@
 CFLAGS_octeon-platform.o = -I$(src)/../../../scripts/dtc/libfdt
 CFLAGS_setup.o = -I$(src)/../../../scripts/dtc/libfdt
 
+ccflags-y += -Wno-misleading-indentation
+
 obj-y := setup.o serial.o octeon-platform.o octeon-irq.o csrc-octeon.o \
 	 octeon-hw-status.o octeon_info.o cavium.o resource-mgr.o
 obj-y += dma-octeon.o
