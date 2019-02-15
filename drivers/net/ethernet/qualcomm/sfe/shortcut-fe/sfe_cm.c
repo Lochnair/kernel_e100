@@ -99,8 +99,11 @@ struct sfe_cm {
 	u32 exceptions[SFE_CM_EXCEPTION_MAX];
 };
 
+/* SFE bypass mode. When enabled, it will skip the SFE's shortcut
+ * datapath, so ingress traffic can be redirected to the IFB interface.
+ */
 static struct sfe_cm __sc;
-
+static int sfe_ifb_enable;
 
 /*
  * sfe_cm_incr_exceptions()
@@ -134,12 +137,14 @@ static int sfe_cm_recv(struct sk_buff *skb)
 
 	dev = skb->dev;
 
+	if (sfe_ifb_enable)
+		return 0;
+
 	/*
 	 * We're only interested in IPv4 and IPv6 packets.
 	 */
 	if (likely(htons(ETH_P_IP) == skb->protocol)) {
 		struct in_device *in_dev;
-
 		/*
 		 * Does our input device support IP processing?
 		 */
@@ -1011,6 +1016,29 @@ static ssize_t sfe_cm_set_defunct_all(struct device *dev,
 	return count;
 }
 
+static ssize_t sfe_cm_get_ifb(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, (ssize_t)PAGE_SIZE, "%d\n", sfe_ifb_enable);
+}
+
+static ssize_t sfe_cm_set_ifb(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int ret;
+	u32 enable;
+
+	ret = kstrtou32(buf, 0, &enable);
+	if (ret)
+		return ret;
+
+	sfe_ifb_enable = enable;
+	DEBUG_TRACE("sfe_cm_ifb= %d\n", sfe_ifb_enable);
+	return count;
+}
+
 /*
  * sysfs attributes.
  */
@@ -1018,6 +1046,7 @@ static const struct device_attribute sfe_attrs[] = {
 	__ATTR(exceptions, S_IRUGO, sfe_cm_get_exceptions, NULL),
 	__ATTR(stop, S_IWUSR | S_IRUGO, sfe_cm_get_stop, sfe_cm_set_stop),
 	__ATTR(defunct_all, S_IWUSR | S_IRUGO, sfe_cm_get_defunct_all, sfe_cm_set_defunct_all),
+	__ATTR(ifb, S_IWUSR | S_IRUGO, sfe_cm_get_ifb, sfe_cm_set_ifb),
 };
 
 /*
