@@ -407,6 +407,16 @@ static unsigned int sfe_cm_post_routing(struct sk_buff *skb, int is_v4)
 	if (likely(is_v4)) {
 		u32 dscp;
 
+		/* Do not create a flow based on an ICMP packet
+		 * containing an embedded "error packet".
+		 */
+		if (ip_hdr(skb)->protocol == IPPROTO_ICMP &&
+		    ip_hdr(skb)->protocol != sic.protocol) {
+			sfe_cm_incr_exceptions(SFE_CM_EXCEPTION_UNKNOW_PROTOCOL);
+			DEBUG_TRACE("CT flow encapsulated in ICMP error payload\n");
+			return NF_ACCEPT;
+		}
+
 		sic.src_ip.ip = (__be32)orig_tuple.src.u3.ip;
 		sic.dest_ip.ip = (__be32)orig_tuple.dst.u3.ip;
 
@@ -425,12 +435,23 @@ static unsigned int sfe_cm_post_routing(struct sk_buff *skb, int is_v4)
 
 		dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
 		if (dscp) {
-			sic.dest_dscp = dscp;
-			sic.src_dscp = sic.dest_dscp;
+			sic.dscp = dscp;
 			sic.flags |= SFE_CREATE_FLAG_REMARK_DSCP;
 		}
 	} else {
 		u32 dscp;
+
+		/* Do not create a flow based on an ICMP packet
+		 * containing an embedded "error packet".
+		 * TODO(mitzel): Determine whether it's needed to check for
+		 * and skip over IPv6 extension headers before ICMP error.
+		 */
+		if (ipv6_hdr(skb)->nexthdr == IPPROTO_ICMPV6 &&
+		    ipv6_hdr(skb)->nexthdr != sic.protocol) {
+			sfe_cm_incr_exceptions(SFE_CM_EXCEPTION_UNKNOW_PROTOCOL);
+			DEBUG_TRACE("CT flow encapsulated in ICMPv6 error payload\n");
+			return NF_ACCEPT;
+		}
 
 		sic.src_ip.ip6[0] = *((struct sfe_ipv6_addr *)&orig_tuple.src.u3.in6);
 		sic.dest_ip.ip6[0] = *((struct sfe_ipv6_addr *)&orig_tuple.dst.u3.in6);
@@ -451,8 +472,7 @@ static unsigned int sfe_cm_post_routing(struct sk_buff *skb, int is_v4)
 
 		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
 		if (dscp) {
-			sic.dest_dscp = dscp;
-			sic.src_dscp = sic.dest_dscp;
+			sic.dscp = dscp;
 			sic.flags |= SFE_CREATE_FLAG_REMARK_DSCP;
 		}
 	}
@@ -543,10 +563,17 @@ static unsigned int sfe_cm_post_routing(struct sk_buff *skb, int is_v4)
 	 * Get QoS information
 	 */
 	if (skb->priority) {
-		sic.dest_priority = skb->priority;
-		sic.src_priority = sic.dest_priority;
+		sic.priority = skb->priority;
 		sic.flags |= SFE_CREATE_FLAG_REMARK_PRIORITY;
 	}
+
+	/* Indicate whether the packet sampled is associated with the
+	 * 'original' vs. 'reply' direction. QoS policy (e.g. Priority, DSCP)
+	 * specified in the connection create request will only be applied to
+	 * the specified unidirectional flow.
+	 */
+	if (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL)
+		sic.flags |= SFE_CREATE_FLAG_QOS_IS_ORIG_DIR;
 
 	/*
 	 * Get the net device and MAC addresses that correspond to the various source and

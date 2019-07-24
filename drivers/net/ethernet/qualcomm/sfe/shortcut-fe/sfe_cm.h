@@ -24,6 +24,10 @@
 					/* Indicates that we should remark priority of skb */
 #define SFE_CREATE_FLAG_REMARK_DSCP BIT(2)
 					/* Indicates that we should remark DSCP of packet */
+/* Indicates QoS policy (e.g. Priority, DSCP) is associated with packets
+ * flowing in 'original' direction.
+ */
+#define SFE_CREATE_FLAG_QOS_IS_ORIG_DIR BIT(3)
 
 /*
  * IPv6 address structure
@@ -72,10 +76,8 @@ struct sfe_connection_create {
 	u32 original_accel;
 	u32 reply_accel;
 #endif
-	u32 src_priority;
-	u32 dest_priority;
-	u32 src_dscp;
-	u32 dest_dscp;
+	u32 priority;
+	u32 dscp;
 };
 
 /*
