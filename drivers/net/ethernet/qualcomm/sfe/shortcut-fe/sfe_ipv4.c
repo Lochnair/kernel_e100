@@ -1619,6 +1619,20 @@ static int sfe_ipv4_recv_tcp(struct sfe_ipv4 *si, struct sk_buff *skb, struct ne
 
 	counter_cm = cm->counter_match;
 
+	/* If QoS policy (e.g. Priority, DSCP) has not been resolved
+	 * yet for both directions then kick packet back up to go
+	 * through slow path.  The QoS policy will then be snooped and
+	 * applied at the POSTROUTING Netfilter hook.
+	 */
+	if (unlikely(!(cm->flags &
+		       SFE_IPV4_CONNECTION_MATCH_FLAG_QOS_RESOLVED &&
+		       counter_cm->flags &
+		       SFE_IPV4_CONNECTION_MATCH_FLAG_QOS_RESOLVED))) {
+		si->packets_not_forwarded++;
+		spin_unlock_bh(&si->lock);
+		return 0;
+	}
+
 	/*
 	 * Are we doing sequence number checking?
 	 */
@@ -1774,18 +1788,6 @@ static int sfe_ipv4_recv_tcp(struct sfe_ipv4 *si, struct sk_buff *skb, struct ne
 		if (likely((s32)(max_end - counter_cm->protocol_state.tcp.max_end) >= 0)) {
 			counter_cm->protocol_state.tcp.max_end = max_end;
 		}
-	}
-
-	/* If QoS policy (e.g. Priority, DSCP) has not been resolved
-	 * yet for this flow direction then kick packet back up to go
-	 * through slow path.  The QoS policy will then be snooped and
-	 * applied at the POSTROUTING Netfilter hook.
-	 */
-	if (unlikely(!(cm->flags &
-		       SFE_IPV4_CONNECTION_MATCH_FLAG_QOS_RESOLVED))) {
-		si->packets_not_forwarded++;
-		spin_unlock_bh(&si->lock);
-		return 0;
 	}
 
 	/*
