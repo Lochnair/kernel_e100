@@ -28,6 +28,7 @@ nflog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	struct nf_loginfo li;
 	struct net *net = par->net;
 
+	((struct xt_action_param *)par)->cvm_reserved |= SKB_CVM_RESERVED_1;
 	li.type		     = NF_LOG_TYPE_ULOG;
 	li.u.ulog.copy_len   = info->len;
 	li.u.ulog.group	     = info->group;

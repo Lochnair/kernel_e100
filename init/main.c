@@ -478,7 +478,7 @@ static void __init mm_init(void)
 }
 
 #ifdef CONFIG_UBNT_E300
-#define UBNT_MTD_CMDLINE        "1024k(boot0),3072k(boot1)"
+#define UBNT_MTD_CMDLINE        "2048k(boot0),2048k(boot1)"
 void ubnt_mtd_cmdline_replace(char* command_line, const char* mtd_cmdline)
 {
 	char *mtdpart_ptr = NULL;
