@@ -89,6 +89,8 @@ struct octeon_ethernet {
 
 	struct phy_device *phydev;
 	int last_link;
+	int last_speed;
+	int last_duplex;
 	/* Last negotiated link state */
 	u64 link_info;
 	/* Called periodically to check link status */

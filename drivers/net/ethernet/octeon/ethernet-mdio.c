@@ -420,8 +420,13 @@ void cvm_oct_adjust_link(struct net_device *dev)
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	cvmx_helper_link_info_t link_info;
 
-	if (priv->last_link != priv->phydev->link) {
+	if (priv->last_link != priv->phydev->link ||
+	priv->last_speed != priv->phydev->speed ||
+	priv->last_duplex != priv->phydev->duplex) {
 		priv->last_link = priv->phydev->link;
+		priv->last_speed = priv->phydev->speed;
+		priv->last_duplex = priv->phydev->duplex;
+
 		link_info.u64 = 0;
 		link_info.s.link_up = priv->last_link ? 1 : 0;
 		link_info.s.full_duplex = priv->phydev->duplex ? 1 : 0;
@@ -450,6 +455,8 @@ int cvm_oct_common_stop(struct net_device *dev)
 	if (priv->last_link) {
 		link_info.u64 = 0;
 		priv->last_link = 0;
+		priv->last_speed = 0;
+		priv->last_duplex = -1;
 
 		cvmx_helper_link_set(priv->ipd_port, link_info);
 
@@ -504,6 +511,8 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 		return -ENODEV;
 
 	priv->last_link = 0;
+	priv->last_speed = 0;
+	priv->last_duplex = -1;
 	phy_start_aneg(priv->phydev);
 
 	return 0;
