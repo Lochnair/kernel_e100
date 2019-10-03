@@ -511,7 +511,7 @@ __build_packet_message(struct nfnl_log_net *log,
 	if (indev && skb_mac_header_was_set(skb)) {
 		if (nla_put_be16(inst->skb, NFULA_HWTYPE, htons(skb->dev->type)) ||
 		    nla_put_be16(inst->skb, NFULA_HWLEN,
-				 htons(skb->dev->hard_header_len)))
+				 htons(skb->dev->hard_header_len?skb->mac_len:0)))
 			goto nla_put_failure;
 
 		hwhdrp = skb_mac_header(skb);
