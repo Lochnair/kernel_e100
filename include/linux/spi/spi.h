@@ -916,4 +916,6 @@ spi_unregister_device(struct spi_device *spi)
 extern const struct spi_device_id *
 spi_get_device_id(const struct spi_device *sdev);
 
+extern void spi_sysfs_lock(void);
+extern void spi_sysfs_unlock(void);
 #endif /* __LINUX_SPI_H */

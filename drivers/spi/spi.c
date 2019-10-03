@@ -39,6 +39,52 @@
 #include <linux/ioport.h>
 #include <linux/acpi.h>
 
+static DEFINE_MUTEX(csr_lock);
+static struct kobject *_kobj = NULL;
+
+ void spi_sysfs_lock(void)
+{
+}
+EXPORT_SYMBOL(spi_sysfs_lock);
+
+void spi_sysfs_unlock(void)
+{
+}
+EXPORT_SYMBOL(spi_sysfs_unlock);
+
+static ssize_t _spi_sysfs_lock_op(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	switch (buf[0])
+	{
+		case '0':
+			spi_sysfs_lock();
+		break;
+
+		case '1':
+			spi_sysfs_unlock();
+		break;
+		default:
+			printk("error: invalid request %d\n", buf[0]);
+	}
+    return 0;
+}
+
+static struct kobj_attribute _lock_attr = __ATTR(spi_lock, 0220, NULL, _spi_sysfs_lock_op);
+static int __init _spi_sysfs_lock_init(void)
+{
+
+    _kobj = kobject_create_and_add("spi", NULL);
+    if (!_kobj)
+    {
+        printk("error: failed to create /sys directory for spi\n");
+        return -ENOMEM;
+    }
+    if (sysfs_create_file(_kobj, &_lock_attr.attr))
+        printk("error: could not create /sys file\n");
+
+    return 0;
+}
+
 static void spidev_release(struct device *dev)
 {
 	struct spi_device	*spi = to_spi_device(dev);
@@ -572,11 +618,13 @@ static void spi_pump_messages(struct kthread_work *work)
 		master->busy = true;
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 
+	mutex_lock(&csr_lock);
 	if (!was_busy && master->prepare_transfer_hardware) {
 		ret = master->prepare_transfer_hardware(master);
 		if (ret) {
 			dev_err(&master->dev,
 				"failed to prepare transfer hardware\n");
+			mutex_unlock(&csr_lock);
 			return;
 		}
 	}
@@ -585,8 +633,10 @@ static void spi_pump_messages(struct kthread_work *work)
 	if (ret) {
 		dev_err(&master->dev,
 			"failed to transfer one message from queue\n");
+		mutex_unlock(&csr_lock);
 		return;
 	}
+	mutex_unlock(&csr_lock);
 }
 
 static int spi_init_queue(struct spi_master *master)
@@ -1712,6 +1762,8 @@ EXPORT_SYMBOL_GPL(spi_write_then_read);
 static int __init spi_init(void)
 {
 	int	status;
+
+	_spi_sysfs_lock_init();
 
 	buf = kmalloc(SPI_BUFSIZ, GFP_KERNEL);
 	if (!buf) {
