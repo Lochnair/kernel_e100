@@ -1349,6 +1349,13 @@ void __init device_tree_init(void)
 		}
 		do_prune = false;
 		do_set_mac = true;
+	} else if (octeon_bootinfo->board_type == CVMX_BOARD_TYPE_UBNT_E120) {
+		fdt = (struct boot_param_header *)
+			&__dtb_ubnt_e100_begin;
+		dt_size = &__dtb_ubnt_e100_end
+			- &__dtb_ubnt_e100_begin;
+		do_prune = false;
+		do_set_mac = true;
 	} else {
 		fdt = (struct boot_param_header *)&__dtb_octeon_3xxx_begin;
 		dt_size = &__dtb_octeon_3xxx_end - &__dtb_octeon_3xxx_begin;
