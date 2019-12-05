@@ -305,7 +305,7 @@ module_param(wait_pko_response, int, 0644);
 MODULE_PARM_DESC(use_tx_queues, "Wait for response after each pko command.");
 
 // Per Cavium, any number above 512 will cause "nosedive" issue!!!
-static int num_packet_buffers = 480;
+static int num_packet_buffers = 512;
 module_param(num_packet_buffers, int, S_IRUGO);
 MODULE_PARM_DESC(num_packet_buffers, "Number of packet buffers to allocate per port.");
 
@@ -1405,10 +1405,10 @@ static int octeon3_eth_napi(struct napi_struct *napi, int budget)
 	napis_inuse = bitmap_weight(cxt->napi_idx_bitmap, CVMX_MAX_CORES);
 
 	if (napiw->idx == idx) {
-		if (aq_cnt.s.aq_cnt > napis_inuse * 128)
+		if (aq_cnt.s.aq_cnt > napis_inuse * 32)
 			octeon3_add_napi_to_cxt(cxt);
 		else if (napiw->idx > 0 &&
-			 aq_cnt.s.aq_cnt < (napis_inuse - 1) * 128) {
+			 aq_cnt.s.aq_cnt < (napis_inuse - 1) * 32) {
 			napi_complete(napi);
 			octeon3_rm_napi_from_cxt(priv->numa_node, napiw);
 			return 0;

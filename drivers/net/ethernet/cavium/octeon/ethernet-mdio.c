@@ -547,4 +547,45 @@ struct phy_device* cvm_get_phy_device(struct net_device *dev)
 	return phydev;
 }
 EXPORT_SYMBOL(cvm_get_phy_device);
+
+#ifdef CONFIG_UBNT_E300
+static struct phy_device *vlan_2_netdev[8];
+void cvm_oct_setup_ether(struct net_device *dev)
+{
+	int idx;
+	struct octeon_ethernet *priv = netdev_priv(dev);
+	priv->netdev= dev;
+	priv->phydev = dev->phydev;
+	dev->phydev->adjust_link = cvm_oct_adjust_link;
+	dev->ethtool_ops = &cvm_oct_ethtool_ops;
+	dev->rtnl_link_ops = NULL;
+
+	sscanf(dev->name, "eth%d", &idx);
+	if (idx < 0 || idx > 8)
+		return;
+	vlan_2_netdev[idx] = dev;
+}
+EXPORT_SYMBOL(cvm_oct_setup_ether);
+
+struct net_device * cvm_oct_get_vlan_netdev(u16 vid)
+{
+	u8 idx;
+	u16 dev_vlan_id, base_vid;
+
+	if (octeon_board_major_rev() != BOARD_E302_MAJOR &&
+		octeon_board_major_rev() != BOARD_E303_MAJOR)
+		return NULL;
+
+	base_vid = cvm_oct_get_vlan_base_vid();
+	if(vid < base_vid || vid >= cvm_oct_get_vlan_switch0_vid())
+		return NULL;
+
+	idx = vid - base_vid;
+	if (vlan_dev_priv(vlan_2_netdev[idx])->vlan_id != vid)
+		return NULL;
+
+	return vlan_2_netdev[idx];
+}
+EXPORT_SYMBOL(cvm_oct_get_vlan_netdev);
+#endif /* CONFIG_UBNT_E300 */
 #endif /* CONFIG_UBNT */

@@ -193,8 +193,8 @@ int cvm_oct_common_change_mtu(struct net_device *dev, int mtu, u64 base_reg,
 EXPORT_SYMBOL(cvm_oct_common_change_mtu);
 
 #ifdef CONFIG_UBNT_E300
-static u16 vlan_base_vid=0;;
-static u16 vlan_switch0_vid=0;
+static u16 vlan_base_vid=4086;;
+static u16 vlan_switch0_vid=4094;
 static u32 is_vlan_aware_enabled=0;
 inline int cvm_oct_get_vlan_aware_state(void)
 {

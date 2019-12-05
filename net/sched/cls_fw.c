@@ -82,6 +82,19 @@ static int fw_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 				return r;
 			}
 		}
+#ifdef CONFIG_NET_CLS_UBNT_FWMASK
+		if (id && head->mask != 0xFFFFFFFF &&
+			   (TC_H_MAJ(id) == 0 ||
+			   !(TC_H_MAJ(id ^ tp->q->handle)))) {
+			/* Old method: classify the packet using its skb mark + skb mask. */
+			f = rcu_dereference_bh(head->ht[fw_hash(0)]);
+			if (f && !f->id && !f->next) {
+				res->classid = id;
+				res->class = 0;
+				return 0;
+			}
+		}
+#endif
 	} else {
 		/* Old method: classify the packet using its skb mark. */
 		if (id && (TC_H_MAJ(id) == 0 ||
@@ -300,13 +313,19 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 		return err;
 	}
 
+#ifndef CONFIG_NET_CLS_UBNT_FWMASK
 	if (!handle)
 		return -EINVAL;
+#endif
 
 	if (!head) {
 		u32 mask = 0xFFFFFFFF;
 		if (tb[TCA_FW_MASK])
 			mask = nla_get_u32(tb[TCA_FW_MASK]);
+#ifdef CONFIG_NET_CLS_UBNT_FWMASK
+		if (mask == 0xFFFFFFFF && !handle)
+			return -EINVAL;
+#endif
 
 		head = kzalloc(sizeof(*head), GFP_KERNEL);
 		if (!head)
@@ -314,6 +333,10 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 		head->mask = mask;
 
 		rcu_assign_pointer(tp->root, head);
+#ifdef CONFIG_NET_CLS_UBNT_FWMASK
+	} else if (!handle) {
+		return -EINVAL;
+#endif
 	}
 
 	f = kzalloc(sizeof(struct fw_filter), GFP_KERNEL);
@@ -383,8 +406,22 @@ static int fw_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 
 	t->tcm_handle = f->id;
 
-	if (!f->res.classid && !tcf_exts_is_available(&f->exts))
+	if (!f->res.classid && !tcf_exts_is_available(&f->exts)) {
+#ifdef CONFIG_NET_CLS_UBNT_FWMASK
+		if (head && head->mask != 0xFFFFFFFF) {
+			f = rcu_dereference_bh(head->ht[fw_hash(0)]);
+			if (f && !f->id && !f->next) {
+				nest = nla_nest_start(skb, TCA_OPTIONS);
+				if (nest == NULL)
+					goto nla_put_failure;
+				if (nla_put_u32(skb, TCA_FW_MASK, head->mask))
+					goto nla_put_failure;
+				nla_nest_end(skb, nest);
+			}
+		}
+#endif
 		return skb->len;
+	}
 
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)

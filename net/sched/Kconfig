@@ -400,6 +400,13 @@ config NET_CLS_FW
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_fw.
 
+config NET_CLS_UBNT_FWMASK
+	bool "Netfilter mark (FW) with UBNT mask support"
+	depends on NET_CLS_FW
+	---help---
+	  If you say Y here, you will be able to classify packets
+	  according to netfilter/firewall marks using old method.
+
 config NET_CLS_U32
 	tristate "Universal 32bit comparisons w/ hashing (U32)"
 	select NET_CLS
