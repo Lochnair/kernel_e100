@@ -78,6 +78,7 @@ struct sfe_connection_create {
 #endif
 	u32 priority;
 	u32 dscp;
+	int flow_accel_delay_pkts;
 };
 
 /*

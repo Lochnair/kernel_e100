@@ -317,6 +317,9 @@ struct sfe_ipv6_connection {
 					/* Pointer to the previous entry in the list of all connections */
 	u32 mark;			/* mark for outgoing packet */
 	u32 debug_read_seq;		/* sequence number for debug dump */
+	int flow_accel_delay_pkts;	/* Number of packets that must be
+					 * received until flow is eligible for
+					 * acceleration */
 };
 
 /*
@@ -1167,6 +1170,7 @@ static int sfe_ipv6_recv_udp(struct sfe_ipv6 *si, struct sk_buff *skb, struct ne
 	__be16 dest_port;
 	struct sfe_ipv6_connection_match *cm;
 	struct net_device *xmit_dev;
+	bool force_slow_path = false;
 
 	/*
 	 * Is our packet too short to contain a valid UDP header?
@@ -1225,6 +1229,14 @@ static int sfe_ipv6_recv_udp(struct sfe_ipv6 *si, struct sk_buff *skb, struct ne
 		return 0;
 	}
 
+	/* Account for each packet received while delaying SFE flow
+	 * acceleration offload.
+	 */
+	if (unlikely(cm->connection->flow_accel_delay_pkts > 0)) {
+		cm->connection->flow_accel_delay_pkts--;
+		force_slow_path = true;
+	}
+
 #ifdef CONFIG_XFRM
 	/*
 	 * We can't accelerate the flow on this direction, just let it go
@@ -1275,6 +1287,15 @@ static int sfe_ipv6_recv_udp(struct sfe_ipv6 *si, struct sk_buff *skb, struct ne
 	 */
 	if (unlikely(!(cm->flags &
 		       SFE_IPV6_CONNECTION_MATCH_FLAG_QOS_RESOLVED))) {
+		si->packets_not_forwarded++;
+		spin_unlock_bh(&si->lock);
+		return 0;
+	}
+
+	/* Kick packet back up to slow path if we're delaying SFE flow
+	 * acceleration offload to allow policies to inspect additional packets.
+	 */
+	if (unlikely(force_slow_path)) {
 		si->packets_not_forwarded++;
 		spin_unlock_bh(&si->lock);
 		return 0;
@@ -1517,6 +1538,7 @@ static int sfe_ipv6_recv_tcp(struct sfe_ipv6 *si, struct sk_buff *skb, struct ne
 	struct sfe_ipv6_connection_match *counter_cm;
 	u32 flags;
 	struct net_device *xmit_dev;
+	bool force_slow_path = false;
 
 	/*
 	 * Is our packet too short to contain a valid UDP header?
@@ -1590,6 +1612,14 @@ static int sfe_ipv6_recv_tcp(struct sfe_ipv6 *si, struct sk_buff *skb, struct ne
 		return 0;
 	}
 
+	/* Account for each packet received while delaying SFE flow
+	 * acceleration offload.
+	 */
+	if (unlikely(cm->connection->flow_accel_delay_pkts > 0)) {
+		cm->connection->flow_accel_delay_pkts--;
+		force_slow_path = true;
+	}
+
 #ifdef CONFIG_XFRM
 	/*
 	 * We can't accelerate the flow on this direction, just let it go
@@ -1661,6 +1691,15 @@ static int sfe_ipv6_recv_tcp(struct sfe_ipv6 *si, struct sk_buff *skb, struct ne
 		       SFE_IPV6_CONNECTION_MATCH_FLAG_QOS_RESOLVED &&
 		       counter_cm->flags &
 		       SFE_IPV6_CONNECTION_MATCH_FLAG_QOS_RESOLVED))) {
+		si->packets_not_forwarded++;
+		spin_unlock_bh(&si->lock);
+		return 0;
+	}
+
+	/* Kick packet back up to slow path if we're delaying SFE flow
+	 * acceleration offload to allow policies to inspect additional packets.
+	 */
+	if (unlikely(force_slow_path)) {
 		si->packets_not_forwarded++;
 		spin_unlock_bh(&si->lock);
 		return 0;
@@ -2589,6 +2628,7 @@ int sfe_ipv6_create_rule(struct sfe_connection_create *sic)
 	c->mark = sic->mark;
 	c->debug_read_seq = 0;
 	c->last_sync_jiffies = get_jiffies_64();
+	c->flow_accel_delay_pkts = sic->flow_accel_delay_pkts;
 	/* Apply QoS policy to the flow direction reported in the connection
 	 * create request.
 	 */
@@ -2926,6 +2966,7 @@ static bool sfe_ipv6_debug_dev_read_connections_connection(struct sfe_ipv6 *si, 
 	char dest_priority[12];
 	char src_dscp[6];
 	char dest_dscp[6];
+	int flow_accel_delay_pkts;
 
 	spin_lock_bh(&si->lock);
 
@@ -3004,6 +3045,7 @@ static bool sfe_ipv6_debug_dev_read_connections_connection(struct sfe_ipv6 *si, 
 	dest_rx_bytes = reply_cm->rx_byte_count64;
 	last_sync_jiffies = get_jiffies_64() - c->last_sync_jiffies;
 	mark = c->mark;
+	flow_accel_delay_pkts = c->flow_accel_delay_pkts;
 
 	spin_unlock_bh(&si->lock);
 
@@ -3020,7 +3062,8 @@ static bool sfe_ipv6_debug_dev_read_connections_connection(struct sfe_ipv6 *si, 
 				"dest_priority=\"%s\" dest_dscp=\"%s\" "
 				"dest_rx_pkts=\"%llu\" dest_rx_bytes=\"%llu\" "
 				"last_sync=\"%llu\" "
-				"mark=\"%08x\" />\n",
+				"mark=\"%08x\" "
+				"flow_accel_delay_pkts=\"%d\" />\n",
 				protocol,
 				src_dev->name,
 				&src_ip, &src_ip_xlate,
@@ -3032,7 +3075,7 @@ static bool sfe_ipv6_debug_dev_read_connections_connection(struct sfe_ipv6 *si, 
 				ntohs(dest_port), ntohs(dest_port_xlate),
 				dest_priority, dest_dscp,
 				dest_rx_packets, dest_rx_bytes,
-				last_sync_jiffies, mark);
+				last_sync_jiffies, mark, flow_accel_delay_pkts);
 
 	if (copy_to_user(buffer + *total_read, msg, CHAR_DEV_MSG_SIZE)) {
 		return false;
