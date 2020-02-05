@@ -99,11 +99,20 @@ struct sfe_cm {
 	u32 exceptions[SFE_CM_EXCEPTION_MAX];
 };
 
+static struct sfe_cm __sc;
+
 /* SFE bypass mode. When enabled, it will skip the SFE's shortcut
  * datapath, so ingress traffic can be redirected to the IFB interface.
  */
-static struct sfe_cm __sc;
 static int sfe_ifb_enable;
+
+/* Delay SFE flow acceleration until the specified number of packets is
+ * observed. This can allow for slow path policies that require inspecting
+ * additional packets after connection establishment / conntrack 'confirmed'
+ * state.
+ */
+static int sfe_cm_udp_flow_accel_delay_pkts;
+static int sfe_cm_tcp_flow_accel_delay_pkts;
 
 /*
  * sfe_cm_incr_exceptions()
@@ -496,6 +505,7 @@ static unsigned int sfe_cm_post_routing(struct sk_buff *skb, int is_v4)
 		sic.dest_td_max_window = ct->proto.tcp.seen[1].td_maxwin;
 		sic.dest_td_end = ct->proto.tcp.seen[1].td_end;
 		sic.dest_td_max_end = ct->proto.tcp.seen[1].td_maxend;
+		sic.flow_accel_delay_pkts = sfe_cm_tcp_flow_accel_delay_pkts;
 
 		if (nf_ct_tcp_no_window_check
 		    || (ct->proto.tcp.seen[0].flags & IP_CT_TCP_FLAG_BE_LIBERAL)
@@ -534,6 +544,7 @@ static unsigned int sfe_cm_post_routing(struct sk_buff *skb, int is_v4)
 		sic.dest_port = orig_tuple.dst.u.udp.port;
 		sic.src_port_xlate = reply_tuple.dst.u.udp.port;
 		sic.dest_port_xlate = reply_tuple.src.u.udp.port;
+		sic.flow_accel_delay_pkts = sfe_cm_udp_flow_accel_delay_pkts;
 		break;
 
 	default:
@@ -1039,6 +1050,64 @@ static ssize_t sfe_cm_set_ifb(struct device *dev,
 	return count;
 }
 
+static ssize_t
+sfe_cm_get_udp_flow_accel_delay_pkts(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	return snprintf(buf, (ssize_t)PAGE_SIZE, "%d\n",
+			sfe_cm_udp_flow_accel_delay_pkts);
+}
+
+static ssize_t
+sfe_cm_set_udp_flow_accel_delay_pkts(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	int ret;
+	int flow_accel_delay_pkts;
+
+	ret = kstrtoint(buf, 0, &flow_accel_delay_pkts);
+	if (ret)
+		return ret;
+	if (flow_accel_delay_pkts < 0)
+		return -EINVAL;
+
+	sfe_cm_udp_flow_accel_delay_pkts = flow_accel_delay_pkts
+	DEBUG_TRACE("sfe_cm_udp_flow_accel_delay_pkts= %d\n",
+		    sfe_cm_udp_flow_accel_delay_pkts);
+	return count;
+}
+
+static ssize_t
+sfe_cm_get_tcp_flow_accel_delay_pkts(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	return snprintf(buf, (ssize_t)PAGE_SIZE, "%d\n",
+			sfe_cm_tcp_flow_accel_delay_pkts);
+}
+
+static ssize_t
+sfe_cm_set_tcp_flow_accel_delay_pkts(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	int ret;
+	int flow_accel_delay_pkts;
+
+	ret = kstrtoint(buf, 0, &flow_accel_delay_pkts);
+	if (ret)
+		return ret;
+	if (flow_accel_delay_pkts < 0)
+		return -EINVAL;
+
+	sfe_cm_tcp_flow_accel_delay_pkts = flow_accel_delay_pkts
+	DEBUG_TRACE("sfe_cm_tcp_flow_accel_delay_pkts= %d\n",
+		    sfe_cm_tcp_flow_accel_delay_pkts);
+	return count;
+}
+
 /*
  * sysfs attributes.
  */
@@ -1047,6 +1116,12 @@ static const struct device_attribute sfe_attrs[] = {
 	__ATTR(stop, S_IWUSR | S_IRUGO, sfe_cm_get_stop, sfe_cm_set_stop),
 	__ATTR(defunct_all, S_IWUSR | S_IRUGO, sfe_cm_get_defunct_all, sfe_cm_set_defunct_all),
 	__ATTR(ifb, S_IWUSR | S_IRUGO, sfe_cm_get_ifb, sfe_cm_set_ifb),
+	__ATTR(udp_flow_accel_delay_pkts, S_IWUSR | S_IRUGO,
+	       sfe_cm_get_udp_flow_accel_delay_pkts,
+	       sfe_cm_set_udp_flow_accel_delay_pkts),
+	__ATTR(tcp_flow_accel_delay_pkts, S_IWUSR | S_IRUGO,
+	       sfe_cm_get_tcp_flow_accel_delay_pkts,
+	       sfe_cm_set_tcp_flow_accel_delay_pkts),
 };
 
 /*
