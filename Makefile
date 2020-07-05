@@ -127,7 +127,9 @@ PHONY := _all
 _all:
 
 # Cancel implicit rules on top Makefile
+ifneq ($(filter 3.%,$(MAKE_VERSION)),)
 $(CURDIR)/Makefile Makefile: ;
+endif
 
 ifneq ($(words $(subst :, ,$(CURDIR))), 1)
   $(error main directory cannot contain spaces nor colons)
