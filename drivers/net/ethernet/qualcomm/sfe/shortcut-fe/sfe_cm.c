@@ -1073,7 +1073,7 @@ sfe_cm_set_udp_flow_accel_delay_pkts(struct device *dev,
 	if (flow_accel_delay_pkts < 0)
 		return -EINVAL;
 
-	sfe_cm_udp_flow_accel_delay_pkts = flow_accel_delay_pkts
+	sfe_cm_udp_flow_accel_delay_pkts = flow_accel_delay_pkts;
 	DEBUG_TRACE("sfe_cm_udp_flow_accel_delay_pkts= %d\n",
 		    sfe_cm_udp_flow_accel_delay_pkts);
 	return count;
@@ -1102,7 +1102,7 @@ sfe_cm_set_tcp_flow_accel_delay_pkts(struct device *dev,
 	if (flow_accel_delay_pkts < 0)
 		return -EINVAL;
 
-	sfe_cm_tcp_flow_accel_delay_pkts = flow_accel_delay_pkts
+	sfe_cm_tcp_flow_accel_delay_pkts = flow_accel_delay_pkts;
 	DEBUG_TRACE("sfe_cm_tcp_flow_accel_delay_pkts= %d\n",
 		    sfe_cm_tcp_flow_accel_delay_pkts);
 	return count;
