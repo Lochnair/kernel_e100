@@ -518,7 +518,7 @@ static int octeon_mgmt_napi_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		/* We stopped because no more packets were available. */
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		if (p->has_o3_structs) {
 			union cvmx_mixx_isr mixx_isr;
 			mixx_isr.u64 = 0;

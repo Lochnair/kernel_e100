@@ -351,6 +351,9 @@ CVM_OCT_XMIT
 		work->packet_ptr.u64 = (unsigned long)skb;
 	}
 
+	if (priv->tx_cb)
+		priv->tx_cb(priv->netdev, work, skb);
+
 	local_irq_save(flags);
 
 	cvmx_pko_send_packet_prepare_pkoid(priv->pko_port,

@@ -401,7 +401,8 @@ void mdiobus_free(struct mii_bus *bus)
 }
 EXPORT_SYMBOL(mdiobus_free);
 
-#if defined(CONFIG_UBNT_E1000) || defined(CONFIG_UBNT_E1020)
+#if defined(CONFIG_UBNT_E1000) || defined(CONFIG_UBNT_E1020) || \
+	defined(CONFIG_UBNT_E300)
 static int mdiobus_match_name(struct device * dev, const void * data)
 {
 	const char *name = data;
@@ -421,7 +422,7 @@ struct mii_bus *mdiobus_find(char * name)
 }
 
 EXPORT_SYMBOL(mdiobus_find);
-#endif /* CONFIG_UBNT_E1000 || CONFIG_UBNT_E1020 */
+#endif /* CONFIG_UBNT_E1000 || CONFIG_UBNT_E1020 || defined(CONFIG_UBNT_E300)*/
 
 /**
  * mdiobus_scan - scan a bus for MDIO devices.

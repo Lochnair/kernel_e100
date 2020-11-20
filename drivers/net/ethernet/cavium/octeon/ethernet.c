@@ -162,7 +162,7 @@ LIST_HEAD(cvm_oct_list);
 static void cvm_oct_rx_refill_worker(struct work_struct *work);
 static DECLARE_DELAYED_WORK(cvm_oct_rx_refill_work, cvm_oct_rx_refill_worker);
 
-#if 1
+#ifdef CONFIG_UBNT_E300
 static int gindex = 0;
 static char *intf_remap_300[4] = {"eth3", "eth0", "eth1", "eth2"};
 static char *intf_remap_301[6] = {"eth5", "eth0", "eth1", "eth2", "eth3",
@@ -429,7 +429,7 @@ static int cvm_oct_configure_common_hw(void)
  *
  * Returns the net_device structure for the ethernet port or NULL on failure.
  */
-struct net_device *cvm_oct_register_callback(const char *device_name, cvm_oct_callback_t callback)
+struct net_device *cvm_oct_register_rx_callback(const char *device_name, cvm_oct_callback_t callback)
 {
 	struct octeon_ethernet *priv;
 
@@ -437,12 +437,29 @@ struct net_device *cvm_oct_register_callback(const char *device_name, cvm_oct_ca
 		if (strcmp(device_name, priv->netdev->name) == 0) {
 			priv->intercept_cb = callback;
 			wmb();
+			printk("%s : rx callback registerd\n", device_name);
 			return priv->netdev;
 		}
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(cvm_oct_register_callback);
+EXPORT_SYMBOL(cvm_oct_register_rx_callback);
+
+struct net_device *cvm_oct_register_tx_callback(const char *device_name, cvm_oct_callback_t callback)
+{
+	struct octeon_ethernet *priv;
+
+	list_for_each_entry(priv, &cvm_oct_list, list) {
+		if (strcmp(device_name, priv->netdev->name) == 0) {
+			priv->tx_cb = callback;
+			wmb();
+			printk("%s : tx callback registerd\n", device_name);
+			return priv->netdev;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(cvm_oct_register_tx_callback);
 
 #ifdef CONFIG_CAVIUM_NET_PACKET_FWD_OFFLOAD
 struct net_device *is_oct_dev(const char *device_name)
@@ -980,6 +997,11 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				continue;
 			pip_prt_tagx.u64 = cvmx_read_csr(CVMX_PIP_PRT_TAGX(port));
 			pip_prt_tagx.s.grp = pow_receive_group;
+			pip_prt_tagx.s.ip4_tag_type  = (cvmx_pow_tag_type_t)CVMX_POW_TAG_TYPE_ATOMIC;
+			pip_prt_tagx.s.ip4_src_flag  = 1;
+			pip_prt_tagx.s.ip4_dst_flag  = 1;
+			pip_prt_tagx.s.ip4_sprt_flag = 1;
+			pip_prt_tagx.s.ip4_dprt_flag = 1;
 			cvmx_write_csr(CVMX_PIP_PRT_TAGX(port), pip_prt_tagx.u64);
 		}
 	}

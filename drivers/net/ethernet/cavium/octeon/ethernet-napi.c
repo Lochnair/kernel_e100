@@ -128,8 +128,8 @@ static int CVM_OCT_NAPI_POLL(struct napi_struct *napi, int budget)
 
 		/* Check every 8th packet if there is enough work waiting to
 		 * merit waking another CPU.
-			 */
-		if (unlikely((rx_count % 8) == 0 && core_state.baseline_cores != 1)) {
+		 */
+		if (unlikely((rx_count % 8) == 0)) {
 			int backlog;
 			int cores_in_use = core_state.active_cores;
 			if (CVM_OCT_NAPI_HAS_CN68XX_SSO) {

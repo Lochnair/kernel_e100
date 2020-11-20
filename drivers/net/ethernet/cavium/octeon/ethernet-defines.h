@@ -77,7 +77,7 @@
 
 /* Enable Random Early Dropping under load */
 #define USE_RED                     1
-#define USE_ASYNC_IOBDMA            1
+#define USE_ASYNC_IOBDMA            0
 
 /*
  * Allow SW based preamble removal at 10Mbps to workaround PHYs giving

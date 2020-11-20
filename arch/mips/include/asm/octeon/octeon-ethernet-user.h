@@ -94,7 +94,9 @@ typedef cvm_oct_callback_result_t (*cvm_oct_callback_t)(struct net_device *dev,
 							void *work_queue_entry,
 							struct sk_buff *skb);
 
-extern struct net_device *cvm_oct_register_callback(const char *, cvm_oct_callback_t);
+//extern struct net_device *cvm_oct_register_callback(const char *, cvm_oct_callback_t);
+struct net_device *cvm_oct_register_rx_callback(const char *device_name, cvm_oct_callback_t callback);
+struct net_device *cvm_oct_register_tx_callback(const char *device_name, cvm_oct_callback_t callback);
 extern struct net_device *is_oct_dev(const char *device_name);
 
 #ifdef CONFIG_CAVIUM_NET_PACKET_FWD_OFFLOAD
