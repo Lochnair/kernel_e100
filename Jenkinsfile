@@ -35,7 +35,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'make -j5 ARCH=mips CROSS_COMPILE=mips64-octeon-linux- vmlinux modules'
+                sh 'make -j5 ARCH=mips CROSS_COMPILE=mips64-octeon-linux- KCFLAGS="-w" vmlinux modules'
             }
         }
         
